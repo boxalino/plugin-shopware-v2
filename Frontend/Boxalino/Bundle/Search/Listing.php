@@ -15,6 +15,10 @@ class Shopware_Plugins_Frontend_Boxalino_Bundle_Search_Listing
 
     public function _request()
     {
+        /** @var Doctrine\DBAL\Connection $connection */
+        $connection = $this->get('dbal_connection');
+
+        $categoryId = $this->getRequest()->getParam('sCategory');
         $requestOrder = $this->getRequest()->getParam($this->getOrderParam());
         $defaultListingSort = $this->getDefaultListingSorting();
         $this->sSortRule = $requestOrder;
@@ -23,8 +27,19 @@ class Shopware_Plugins_Frontend_Boxalino_Bundle_Search_Listing
             $specialCase = $this->config->get('boxalino_navigation_special_enabled');
             $ids = explode(',', $this->config->get('boxalino_navigation_exclude_ids'));
             $sSortValue = Shopware_Plugins_Frontend_Boxalino_Bundle_Sorting_BoxalinoSortingInterface::BOXALINO_BUNDLE_SORTING_DEFAULT;
-            if($specialCase && in_array($this->getRequest()->getParam('sCategory'), $ids)) {
+            if($specialCase && in_array($categoryId, $ids)) {
                 $sSortValue = $defaultListingSort;
+            }
+            $sortingIdsStr = $connection->createQueryBuilder()
+                ->select('sorting_ids')
+                ->from('s_categories')
+                ->where('id = :id')
+                ->setParameter('id', $categoryId)
+                ->execute()
+                ->fetchColumn();
+            $sortingIds = array_values(array_filter(explode('|', $sortingIdsStr)));
+            if (count($sortingIds) > 0) {
+                $sSortValue = $sortingIds[0];
             }
             $this->getRequest()->setParam("sSort", $sSortValue);
             $this->sSortRule = $sSortValue;
